@@ -82,7 +82,13 @@ module CryptographyBase<LocationSig Location, InputSig<Location> Input> {
 
   abstract class HashAlgorithmInstance extends LocatableElement { }
 
-  abstract class KeyDerivationOperationInstance extends LocatableElement { }
+  abstract class KeyDerivationOperationInstance extends LocatableElement {
+    abstract KeyDerivationAlgorithmInstance getAlgorithm();
+
+    abstract KeyMaterialInstance getInputKeyMaterial();
+
+    abstract KeyArtifactInstance getOutputKey();
+  }
 
   abstract class KeyDerivationAlgorithmInstance extends LocatableElement { }
 
@@ -120,7 +126,9 @@ module CryptographyBase<LocationSig Location, InputSig<Location> Input> {
 
   abstract class KeyMaterialInstance extends ArtifactLocatableElement { }
 
-  abstract class KeyArtifactInstance extends ArtifactLocatableElement { }
+  abstract class KeyArtifactInstance extends ArtifactLocatableElement {
+    abstract DataFlowNode getKeySize();
+  }
 
   abstract class NonceArtifactInstance extends ArtifactLocatableElement { }
 
@@ -411,16 +419,6 @@ module CryptographyBase<LocationSig Location, InputSig<Location> Input> {
   }
 
   /**
-   * An operation that derives one or more keys from an input value.
-   */
-  abstract class KeyDerivationOperation extends Operation, TKeyDerivationOperation {
-    final override Location getLocation() {
-      exists(LocatableElement le | this = TKeyDerivationOperation(le) and result = le.getLocation())
-    }
-    //override string getOperationType() { result = "KeyDerivationOperation" }
-  }
-
-  /**
    * An algorithm that derives one or more keys from an input value.
    *
    * Only use this class to model UNKNOWN key derivation algorithms.
@@ -428,6 +426,8 @@ module CryptographyBase<LocationSig Location, InputSig<Location> Input> {
    * For known algorithms, use the specialized classes, e.g., `HKDF` and `PKCS12KDF`.
    */
   abstract class KeyDerivationAlgorithm extends Algorithm, TKeyDerivationAlgorithm {
+    final LocatableElement getInstance() { this = TKeyDerivationAlgorithm(result) }
+
     final override Location getLocation() {
       exists(LocatableElement le | this = TKeyDerivationAlgorithm(le) and result = le.getLocation())
     }
@@ -1022,4 +1022,43 @@ module CryptographyBase<LocationSig Location, InputSig<Location> Input> {
   }
 
   final class KeyMaterial = KeyMaterialImpl;
+
+  /**
+   * A Key Object
+   */
+  private class KeyArtifactImpl extends Artifact, TKey {
+    KeyArtifactInstance instance;
+
+    KeyArtifactImpl() { this = TKey(instance) }
+
+    final override string getInternalType() { result = "KeyMaterial" }
+
+    override Location getLocation() { result = instance.getLocation() }
+
+    override DataFlowNode asOutputData() { result = instance.asOutputData() }
+
+    override DataFlowNode getInputData() { result = instance.getInput() }
+  }
+
+  final class KeyArtifact = KeyArtifactImpl;
+
+  /**
+   * A Key Derivation operation
+   * todo: decide if derivation or generation is the right term here for the most general concept
+   */
+  private class KeyDerivationOperationImpl extends Operation, TKeyDerivationOperation {
+    KeyDerivationOperationInstance instance;
+
+    KeyDerivationOperationImpl() { this = TKeyDerivationOperation(instance) }
+
+    final override string getInternalType() { result = "KeyMaterial" }
+
+    override Location getLocation() { result = instance.getLocation() }
+
+    override KeyDerivationAlgorithm getAlgorithm() {
+      result.getInstance() = instance.getAlgorithm()
+    }
+  }
+
+  final class KeyDerivationOperation = KeyDerivationOperationImpl;
 }

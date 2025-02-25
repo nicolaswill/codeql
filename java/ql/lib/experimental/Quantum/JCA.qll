@@ -559,4 +559,36 @@ module JCAModel {
 
     override DataFlow::Node getInput() { result.asExpr() = this.(ClassInstanceExpr).getArgument(0) }
   }
+
+  /**
+   * A Key Object
+   */
+  class KeyInstantiation extends Crypto::KeyArtifactInstance instanceof Expr {
+    KeyInstantiation() {
+      exists(RefType t, Variable v |
+        this = v.getInitializer() and
+        v.getType().(RefType).extendsOrImplements*(t) and
+        t.hasQualifiedName("java.security", "Key")
+      )
+    }
+
+    override DataFlow::Node asOutputData() { result.asExpr() = this }
+
+    override DataFlow::Node getInput() { result.asExpr() = this.(ClassInstanceExpr).getArgument(0) }
+
+    override DataFlow::Node getKeySize() { none() }
+  }
+
+  /**
+   * Key Factory
+   * any class that implements `java.security.KeyFactory`
+   */
+  class KeyFactoryObject extends Class {
+    KeyFactoryObject() {
+      exists(RefType t |
+        this.extendsOrImplements*(t) and
+        t.hasQualifiedName("java.security", "KeyFactory")
+      )
+    }
+  }
 }
