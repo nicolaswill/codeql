@@ -368,11 +368,16 @@ module CryptographyBase<LocationSig Location, InputSig<Location> Input> {
      * Gets the type of this digest algorithm, e.g., "SHA1", "SHA2", "MD5" etc.
      */
     abstract THashType getHashFamily();
-
     // abstract int getHashSize();
   }
 
-  abstract class KeyDerivationOperationInstance extends KnownElement { }
+  abstract class KeyDerivationOperationInstance extends KnownElement {
+    abstract KeyDerivationAlgorithmInstance getAlgorithm();
+
+    abstract KeyMaterialInstance getInputKeyMaterial();
+
+    abstract KeyArtifactInstance getOutputKey();
+  }
 
   abstract class KeyDerivationAlgorithmInstance extends KnownElement { }
 
@@ -395,12 +400,17 @@ module CryptographyBase<LocationSig Location, InputSig<Location> Input> {
   abstract class CipherInputConsumer extends ArtifactConsumerAndInstance { }
 
   // Other artifacts
-  abstract class KeyArtifactInstance extends ArtifactElement { } // TODO: implement and categorize
+  abstract class KeyMaterialInstance extends ArtifactElement { }
+
+  abstract class KeyArtifactInstance extends ArtifactElement {
+    abstract DataFlowNode getKeySize();
+  }
 
   newtype TNode =
     // Artifacts (data that is not an operation or algorithm, e.g., a key)
     TDigest(DigestArtifactInstance e) or
     TKey(KeyArtifactInstance e) or
+    TKeyMaterial(KeyMaterialInstance e) or
     TNonce(NonceArtifactConsumer e) or
     TCipherInput(CipherInputConsumer e) or
     TCipherOutput(CipherOutputArtifactInstance e) or
@@ -1085,7 +1095,9 @@ module CryptographyBase<LocationSig Location, InputSig<Location> Input> {
    */
   abstract class HashAlgorithmNode extends AlgorithmNode, THashAlgorithm {
     HashAlgorithmInstance instance;
+
     HashAlgorithmNode() { this = THashAlgorithm(instance) }
+
     override string getInternalType() { result = "HashAlgorithm" }
 
     final predicate hashTypeToNameMapping(THashType type, string name) {
@@ -1200,6 +1212,8 @@ module CryptographyBase<LocationSig Location, InputSig<Location> Input> {
    * For known algorithms, use the specialized classes, e.g., `HKDF` and `PKCS12KDF`.
    */
   abstract class KeyDerivationAlgorithmNode extends AlgorithmNode, TKeyDerivationAlgorithm {
+    final LocatableElement getInstance() { this = TKeyDerivationAlgorithm(result) }
+
     final override Location getLocation() {
       exists(LocatableElement le | this = TKeyDerivationAlgorithm(le) and result = le.getLocation())
     }
@@ -1471,4 +1485,58 @@ module CryptographyBase<LocationSig Location, InputSig<Location> Input> {
   abstract class KEMAlgorithm extends TKeyEncapsulationAlgorithm, AlgorithmNode {
     final override string getInternalType() { result = "KeyEncapsulationAlgorithm" }
   }
+
+  /**
+   * A Key Material Object
+   */
+  private class KeyMaterialImpl extends ArtifactNode, TKeyMaterial {
+    KeyMaterialInstance instance;
+
+    KeyMaterialImpl() { this = TKeyMaterial(instance) }
+
+    final override string getInternalType() { result = "KeyMaterial" }
+
+    override Location getLocation() { result = instance.getLocation() }
+
+    override LocatableElement asElement() { result = instance }
+  }
+
+  final class KeyMaterial = KeyMaterialImpl;
+
+  /**
+   * A Key Object
+   */
+  private class KeyArtifactImpl extends ArtifactNode, TKey {
+    KeyArtifactInstance instance;
+
+    KeyArtifactImpl() { this = TKey(instance) }
+
+    final override string getInternalType() { result = "KeyArtifact" }
+
+    override Location getLocation() { result = instance.getLocation() }
+
+    override LocatableElement asElement() { result = instance }
+  }
+
+  final class KeyArtifact = KeyArtifactImpl;
+
+  /**
+   * A Key Derivation operation
+   * todo: decide if derivation or generation is the right term here for the most general concept
+   */
+  private class KeyDerivationOperationImpl extends OperationNode, TKeyDerivationOperation {
+    KeyDerivationOperationInstance instance;
+
+    KeyDerivationOperationImpl() { this = TKeyDerivationOperation(instance) }
+
+    final override string getInternalType() { result = "KeyDerivationOperation" }
+
+    override Location getLocation() { result = instance.getLocation() }
+
+    KeyDerivationAlgorithmNode getAlgorithm() { result.getInstance() = instance.getAlgorithm() }
+
+    override LocatableElement asElement() { result = instance }
+  }
+
+  final class KeyDerivationOperation = KeyDerivationOperationImpl;
 }
